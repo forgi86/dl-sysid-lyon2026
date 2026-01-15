@@ -1,0 +1,220 @@
+---
+title: "Probabilistic Reasoning"
+subtitle: "Multivariate distributions"
+author: "Marco Forgione"
+institute: "BSc DSAI"
+aspectratio: 169
+theme: moloch
+pdf-engine: lualatex
+slide-level: 2
+themeoptions:
+  - block=fill
+mathfont: NewCMMath-Regular.otf
+include-in-header:
+  text: |
+    \usepackage[most]{tcolorbox}
+    \usepackage{xcolor}
+    \usepackage{pdfpages}
+    \DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}
+    \newcommand{\NN}{\mathbb{N}}
+    \newcommand{\RR}{\mathbb{R}}
+    \newcommand{\indep}{\perp \!\!\! \perp}
+format: 
+  beamer:
+    classoption: presentation
+  beamer-handout:
+    classoption: handout
+echo: true
+---
+
+```{python}
+#| echo: false
+import jax
+import jax.numpy as jnp
+import jax.random as jr
+import matplotlib.pyplot as plt
+import matplotlib
+import numpy as onp
+
+onp.random.seed(42)
+
+key = jr.key(42)
+key_W1, key_b1, key_W2, key_b2 = jr.split(key, 4)
+
+# Define your custom parameters as a dictionary
+custom_params = {
+    'figure.figsize': (4, 1.2),  # Width, Height in inches
+    'font.size': 8,           # Default font size
+    'axes.grid': True,         # Always show grid
+}
+
+# Update matplotlib's rcParams with your dictionary
+plt.rcParams.update(custom_params)
+
+```
+
+## A non-linear dataset
+Linear regression is not that exciting. Let's fit a neural net to a non-linear
+dataset! 
+
+```{python}
+#| echo: false
+def f(x):
+    return 2*jnp.sin(3*x)  - 3*jnp.cos(7*x)
+
+a = -1 # lower limit x
+b = 1 # higher limit x
+n_samples = 200 # data point
+sigma_e = 0.1 # noise std
+x_train = a + onp.random.rand(*(n_samples, 1))*(b - a);
+x_train = x_train.reshape(-1, 1)
+y_train = f(x_train)
+```
+
+
+```{python}
+#| echo: false
+plt.plot(x_train, y_train, "*k")
+plt.xlabel("x")
+plt.ylabel("y");
+```
+
+\pause
+```{python}
+x_train.shape, y_train.shape
+```
+
+## A non-linear model: MLP
+A one-hidden-layer feed-forward net:
+$$\hat y = W_2 \tanh (W_1 x + b_1) + b_2 $$
+
+Tunable weights $W_1, b_1, W_2, b_2$. 
+
+\pause
+If we prefer a single parameter vector:
+$$
+p = \mathrm{vec}(W_1, b_1, W_2, b_2),\;\; W_1 \in \mathbb{R}^{n_h \times n_x}, b_1 \in \mathbb{R}^{n_h}, 
+W_2 \in \mathbb{R}^{n_y \times n_h}, b_2 \in \mathbb{R}^{n_y}
+$$
+
+\pause
+The feed-forward net is just a non-linear function:
+$$\hat y = f(p, x) $$
+
+\pause
+In our SISO problem $n_x=1, n_y=1$. We can choose $n_h$ (hyper-parameter).
+
+## A non-linear model: MLP
+In code, it is convenient to organize the parameters in a *dictionary*
+
+:::: {.columns}
+::: {.column width="60%"}
+
+```{python}
+def nn(p, x):
+    z = jnp.tanh(p["W1"] @ x + p["b1"])
+    y = p["W2"] @ z + p["b2"]
+    return y
+```
+:::
+
+::: {.column width="40%"}
+$$ \hat y  = W_2 \tanh (W_1 x + b_1) + b_2 $$
+:::
+
+::::
+\pause
+The parameter dictionary may be initialized like this:
+```{python}
+nx = 1; ny = 1; nh = 16
+p_hat = {
+  "W1": jr.normal(key_W1, shape=(nh, nx)),
+  "b1": jr.normal(key_b1, shape=(nh,)),
+  "W2": jr.normal(key_W2, shape=(ny, nh)),
+  "b2": jr.normal(key_b2, shape=(ny,)),
+}
+```
+
+## A non-linear model: MLP
+Let us apply the neural network to a data point:
+```{python}
+nn(p_hat, x_train[0])
+```
+\pause
+The ``nn`` function only handles a single data point by construction. 
+```{python}
+# nn(p_hat, x_train) # This would not work!
+```
+\pause
+To process a *batch* of inputs, we must *vectorize* ``nn`` wrt its second argument.
+
+```{python}
+batched_nn = jax.vmap(nn, in_axes=(None, 0))
+```
+
+```{python}
+y_hat = batched_nn(p_hat, x_train)
+y_hat.shape
+```
+
+## Fitting the neural net
+```{python}
+#| echo: false 
+p_init = p_hat
+```
+
+```{python}
+def loss_fn(p, y, x):
+    ym = batched_nn(p, x)
+    loss = jnp.mean((y - ym) ** 2)
+    return loss
+
+# return both loss and gradient of the loss
+loss_grad_fn = jax.value_and_grad(loss_fn, 0)
+```
+
+```{python}
+#| echo: false
+loss_grad_fn = jax.jit(loss_grad_fn)
+```
+
+\pause
+Training loop
+```{python}
+lr = 1e-2 # learning rate
+LOSS = []
+for i in range(10_000):
+    l, g = loss_grad_fn(p_hat, y_train, x_train)
+    p_hat = jax.tree.map(lambda x, y: x - lr*y, p_hat, g)
+    LOSS.append(l)
+```
+
+## Results
+:::: {.columns}
+:::{.column width="50%"}
+```{python}
+#| echo: false
+x_train_srt = jnp.sort(x_train, axis=0)
+plt.figure(figsize=(3.5, 2))
+plt.title("Model fit")
+plt.plot(x_train, y_train, "k*", label="y")
+plt.plot(x_train_srt, batched_nn(p_hat, x_train_srt), "g", label="$f(p^{200}, x)$")
+plt.plot(x_train_srt, batched_nn(p_init, x_train_srt), "b", label="$f(p^{1}, x)$")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.legend();
+```
+:::
+
+:::{.column width="50%"}
+```{python}
+#| echo: false
+plt.figure(figsize=(3.5, 2))
+plt.title("Loss vs. Iteration")
+plt.plot(LOSS)
+plt.xlabel("Iteration (-)")
+plt.ylabel("Loss");
+```
+:::
+
+::::

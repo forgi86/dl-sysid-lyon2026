@@ -1,0 +1,265 @@
+---
+title: "Probabilistic Reasoning"
+subtitle: "Multivariate distributions"
+author: "Marco Forgione"
+institute: "BSc DSAI"
+aspectratio: 169
+theme: moloch
+pdf-engine: lualatex
+slide-level: 2
+themeoptions:
+  - block=fill
+mathfont: NewCMMath-Regular.otf
+include-in-header:
+  text: |
+    \usepackage[most]{tcolorbox}
+    \usepackage{xcolor}
+    \usepackage{pdfpages}
+    \DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}
+    \newcommand{\NN}{\mathbb{N}}
+    \newcommand{\RR}{\mathbb{R}}
+    \newcommand{\indep}{\perp \!\!\! \perp}
+format: 
+  beamer:
+    classoption: presentation
+  beamer-handout:
+    classoption: handout
+echo: true
+---
+
+## What are the options?
+
+How do we implement our Neural Networks?
+
+* MATLAB's Deep Learning Toolbox
+* Python + PyTorch
+* Python + JAX
+* Julia
+
+
+## Deep Learning in Jax
+
+Minimal environment
+
+## The numpy API
+Jax has an interface that behaves like numpy (or MATLAB). Let us compute:
+
+$$
+\begin{bmatrix}
+1 & 1
+\end{bmatrix}
++
+\begin{bmatrix}
+1 & 2
+\end{bmatrix} = 
+\begin{bmatrix}
+2 & 3
+\end{bmatrix}
+$$
+
+\pause
+\vskip 1em 
+
+:::: {.columns}
+
+::: {.column width="50%"}
+MATLAB
+```matlab
+a = ones(2)
+b = [1.0, 2.0]
+a + b
+```
+:::
+
+::: {.column width="50%"}
+Jax
+
+```{python}
+#| echo: false
+import jax
+import jax.numpy as jnp
+import jax.random as jr
+import matplotlib.pyplot as plt
+import matplotlib
+import numpy as onp
+
+onp.random.seed(42)
+
+key = jr.key(42)
+key, subkey = jr.split(key, 2)
+key_e, key_p = jr.split(subkey, 2)
+
+key, subkey = jr.split(key, 2)
+key_W1, key_b1, key_W2, key_B2 = jr.split(subkey, 4)
+
+# Define your custom parameters as a dictionary
+custom_params = {
+    'figure.figsize': (4, 1.2),  # Width, Height in inches
+    'font.size': 8,           # Default font size
+    'axes.grid': True,         # Always show grid
+}
+
+# Update matplotlib's rcParams with your dictionary
+plt.rcParams.update(custom_params)
+
+```
+
+```{python}
+a = jnp.ones((2))
+b = jnp.array([1.0, 2.0])
+a + b
+```
+:::
+
+::::
+
+\pause
+
+\vskip 1em
+Jax is slightly more verbose. The price of a general-purpose language like Python.
+
+## Function definition
+
+Define the function: 
+$$ f(p, x) : \mathbb{R}^2 \times \mathbb{R} \mapsto \mathbb{R} = p_1 x + p_2 $$
+
+:::: {.columns}
+
+::: {.column width="40%"}
+MATLAB
+```matlab
+function y = f(p, x)
+    y = p(1) * x + p(2);
+```
+:::
+
+::: {.column width="60%"}
+Jax
+```{python}
+def f(p, x):
+    return p[0] * x  + p[1]
+```
+:::
+
+::::
+
+\pause
+\vskip .5em
+We shall interpret $f$ as the model structure, $p$ as the parameter, $x$ as the input.
+
+\pause
+Apply $f$ with "true" $p^o = [1.0, 2.0]$ to 200 points $x$ linearly spaced in $[-1, 1]$
+
+\pause
+:::: {.columns}
+::: {.column width="40%"}
+```matlab
+p_o = [1.0, 2.0];
+x = linspace(-2, 2, 100);
+y_o = f(p_0, x);
+y = y_o + randn(100) * 0.1;
+```
+:::
+
+::: {.column width="60%"}
+```{python}
+p_0 = jnp.array([1.0, 2.0])
+x = jnp.linspace(-2, 2, 100)
+y0 = f(p_0, x) 
+y = y0 + jr.normal(key_e, (100,)) * 0.1
+```
+:::
+::::
+
+
+
+## Our regression dataset
+```{python}
+#| echo: false
+```
+
+
+```{python}
+p_hat = jax.random.normal(key_p, shape=(2,))
+y_hat = f(p_hat, x)
+plt.plot(x, y, "k*", label="y")
+plt.plot(x, y_hat, "b", label="$f(\hat p, x)$")
+plt.legend()
+```
+\pause
+We also applied $f$ to a randomly initialized parameter $\hat p$.
+
+
+## Loss definition
+The Mean Squared Error (MSE) loss is:
+$$ \mathcal{L}(p, y, x) : \mathbb{R}^2 \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}
+= \frac{1}{N}\sum_{i=1}^{N} \big(y_i - f(p, y_i, x_i)\big)^2
+$$
+
+```{python}
+def loss_fn(p, y, x):
+    ym = f(p, x)
+    loss = jnp.mean((y - ym) ** 2)
+    return loss
+```
+
+```{python}
+loss_fn(p_hat, y, x)
+```
+
+
+## Automatic differentiation in Jax
+For gradient-based optimization, we need the gradient:
+$$
+\nabla_{1} \mathcal{L}(p, y, x): \mathbb{R}^{n_p} \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}^{n_p},
+$$
+i.e. the gradient of $\mathcal{L}$ with respet to its first argument $p$.
+
+\pause
+
+The main point of Jax (PyTorch, ...) is *automatic differentiation*. Efficient numerical evaluation of derivatives of interest!
+
+```{python}
+grad_fn = jax.grad(loss_fn, 0) # gradient wrt 1st agrument
+```
+
+\pause
+The function ``grad_fn`` can be called on arbitraty data:
+```{python}
+grad_fn(p_hat, y, x)
+```
+
+## Fitting a model with Jax
+With automatic differentiation, setting up gradient descent is a piece of cake.
+```{python}
+#| echo: false 
+p_init = p_hat
+```
+
+:::: {.columns}
+::: {.column width="50%"}
+```{python}
+lr = 1e-2 # learning rate
+for i in range(200):
+    g = grad_fn(p_hat, y, x)
+    p_hat = p_hat - lr * g 
+```
+:::
+
+
+:::  {.column width="50%"}
+\vskip 3em
+$$ p^{k+1} = p^{k} - \lambda \nabla_1 \mathcal{L}(p^{k}, y, x) $$
+:::
+::::
+
+\pause
+\vskip 1em
+```{python}
+#| echo: false
+plt.plot(x, y, "k")
+plt.plot(x, f(p_hat, x), "g", label="$f(p^{200}, x)$")
+plt.plot(x, f(p_init, x), "b", label="$f(p^{1}, x)$")
+plt.legend()
+```
+
