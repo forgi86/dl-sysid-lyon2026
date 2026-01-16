@@ -1,8 +1,8 @@
 ---
-title: "Probabilistic Reasoning"
-subtitle: "Multivariate distributions"
+title: "Deep Learning with Jax"
+subtitle: "Introduction"
 author: "Marco Forgione"
-institute: "BSc DSAI"
+institute: "IDSIA USI-SUPSI, Lugano, Switzerland"
 aspectratio: 169
 theme: moloch
 pdf-engine: lualatex
@@ -65,10 +65,11 @@ $$
 ::: {.column width="50%"}
 MATLAB
 ```matlab
-a = ones(2)
-b = [1.0, 2.0]
+a = ones(1, 2);
+b = [1.0, 2.0];
 a + b
 ```
+\texttt{[2    3]}
 :::
 
 ::: {.column width="50%"}
@@ -105,7 +106,7 @@ plt.rcParams.update(custom_params)
 ```
 
 ```{python}
-a = jnp.ones((2))
+a = jnp.ones((2,))
 b = jnp.array([1.0, 2.0])
 a + b
 ```
@@ -116,13 +117,18 @@ a + b
 \pause
 
 \vskip 1em
-Jax is slightly more verbose. The price of a general-purpose language like Python.
+* Jax is slightly more verbose. The price of a general-purpose language like Python.
+\pause
+* Jax allows you define a generic 1D vector (neither a row or a column).
+\pause
+* A few more subtle differences...
 
 ## Function definition
 
-Define the function: 
+* Define the function: 
 $$ f(p, x) : \mathbb{R}^2 \times \mathbb{R} \mapsto \mathbb{R} = p_1 x + p_2 $$
 
+\pause
 :::: {.columns}
 
 ::: {.column width="40%"}
@@ -130,6 +136,7 @@ MATLAB
 ```matlab
 function y = f(p, x)
     y = p(1) * x + p(2);
+end
 ```
 :::
 
@@ -137,97 +144,105 @@ function y = f(p, x)
 Jax
 ```{python}
 def f(p, x):
-    return p[0] * x  + p[1]
+    y = p[0] * x  + p[1]
+    return y
 ```
 :::
 
 ::::
 
-\pause
 \vskip .5em
 We shall interpret $f$ as the model structure, $p$ as the parameter, $x$ as the input.
 
 \pause
-Apply $f$ with "true" $p^o = [1.0, 2.0]$ to 200 points $x$ linearly spaced in $[-1, 1]$
+* Apply $f$ with "true" $p^o = [1.0, 2.0]$ to an input data point $x = 0.5$
 
 \pause
 :::: {.columns}
 ::: {.column width="40%"}
 ```matlab
 p_o = [1.0, 2.0];
-x = linspace(-2, 2, 100);
-y_o = f(p_0, x);
-y = y_o + randn(100) * 0.1;
+x = 0.5;
+f(p_o, x)
 ```
+\texttt{2.5000}
 :::
 
 ::: {.column width="60%"}
 ```{python}
-p_0 = jnp.array([1.0, 2.0])
-x = jnp.linspace(-2, 2, 100)
-y0 = f(p_0, x) 
-y = y0 + jr.normal(key_e, (100,)) * 0.1
+p_o = jnp.array([1.0, 2.0])
+x = jnp.array(0.5)
+y = f(p_o, x); y
 ```
 :::
 ::::
 
+## Linear regression dataset
+* Apply $f$ with $p^o$ to $N=100$ linearly spaced points in $[-2, 2]$, add noise.
+```{python}
+N = 100
+x = jnp.linspace(-2, 2, N)
+y = f(p_o, x) + jr.normal(key_e, (N,)) * 0.1
+```
 
 
-## Our regression dataset
 ```{python}
 #| echo: false
-```
-
-
-```{python}
-p_hat = jax.random.normal(key_p, shape=(2,))
-y_hat = f(p_hat, x)
 plt.plot(x, y, "k*", label="y")
-plt.plot(x, y_hat, "b", label="$f(\hat p, x)$")
-plt.legend()
+plt.title("Training dataset")
+plt.xlabel("x")
+plt.ylabel("y");
 ```
+
 \pause
-We also applied $f$ to a randomly initialized parameter $\hat p$.
+Function `f` works fine both with scalar and vector input `x`.
 
 
 ## Loss definition
 The Mean Squared Error (MSE) loss is:
-$$ \mathcal{L}(p, y, x) : \mathbb{R}^2 \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}
+$$ \mathcal{L}(p, y, x) : \mathbb{R}^{n_p} \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}
 = \frac{1}{N}\sum_{i=1}^{N} \big(y_i - f(p, y_i, x_i)\big)^2
 $$
+with $n_p=2$ parameters.
 
+\pause
+
+We exploit that `f` can process a vector input `x`:
 ```{python}
 def loss_fn(p, y, x):
-    ym = f(p, x)
+    ym = f(p, x) # either scalar (data point) or vector (data batch)
     loss = jnp.mean((y - ym) ** 2)
     return loss
 ```
 
+\pause
 ```{python}
+p_hat = jax.random.normal(key_p, shape=(2,))
 loss_fn(p_hat, y, x)
 ```
 
 
 ## Automatic differentiation in Jax
-For gradient-based optimization, we need the gradient:
+* For gradient-based optimization, we need the gradient:
 $$
 \nabla_{1} \mathcal{L}(p, y, x): \mathbb{R}^{n_p} \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}^{n_p},
 $$
-i.e. the gradient of $\mathcal{L}$ with respet to its first argument $p$.
+i.e. the derivative of $\mathcal{L}$ with respect to its first argument: $p$.
 
 \pause
 
-The main point of Jax (PyTorch, ...) is *automatic differentiation*. Efficient numerical evaluation of derivatives of interest!
+* The main point of Jax (PyTorch, ...) is *automatic differentiation*. Efficient & effortless numerical evaluation of derivatives of interest!
 
 ```{python}
 grad_fn = jax.grad(loss_fn, 0) # gradient wrt 1st agrument
 ```
 
 \pause
-The function ``grad_fn`` can be called on arbitraty data:
+The function ``grad_fn`` can be called on arbitraty arguments:
 ```{python}
 grad_fn(p_hat, y, x)
 ```
+
 
 ## Fitting a model with Jax
 With automatic differentiation, setting up gradient descent is a piece of cake.
@@ -240,6 +255,7 @@ p_init = p_hat
 ::: {.column width="50%"}
 ```{python}
 lr = 1e-2 # learning rate
+
 for i in range(200):
     g = grad_fn(p_hat, y, x)
     p_hat = p_hat - lr * g 
@@ -255,11 +271,14 @@ $$ p^{k+1} = p^{k} - \lambda \nabla_1 \mathcal{L}(p^{k}, y, x) $$
 
 \pause
 \vskip 1em
+
 ```{python}
 #| echo: false
-plt.plot(x, y, "k")
+plt.plot(x, y, "k*", label="y")
 plt.plot(x, f(p_hat, x), "g", label="$f(p^{200}, x)$")
 plt.plot(x, f(p_init, x), "b", label="$f(p^{1}, x)$")
+plt.xlabel("x")
+plt.ylabel("y")
 plt.legend()
 ```
 
