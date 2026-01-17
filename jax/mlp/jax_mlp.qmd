@@ -2,7 +2,7 @@
 title: "Deep Learning with Jax"
 subtitle: "Fitting a feed-forward neural network"
 author: "Marco Forgione"
-institute: "BSc DSAI"
+institute: "IDSIA USI-SUPSI, Lugano, Switzerland"
 aspectratio: 169
 theme: moloch
 pdf-engine: lualatex

@@ -87,11 +87,7 @@ import numpy as onp
 onp.random.seed(42)
 
 key = jr.key(42)
-key, subkey = jr.split(key, 2)
-key_e, key_p = jr.split(subkey, 2)
-
-key, subkey = jr.split(key, 2)
-key_W1, key_b1, key_W2, key_B2 = jr.split(subkey, 4)
+key_e, key_p = jr.split(key, 2)
 
 # Define your custom parameters as a dictionary
 custom_params = {
@@ -195,7 +191,7 @@ plt.ylabel("y");
 ```
 
 \pause
-Function `f` works fine both with scalar and vector input `x`.
+Function `f` works correctly both with scalar and vector input `x`.
 
 
 ## Loss definition
