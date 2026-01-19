@@ -32,6 +32,7 @@ echo: true
 import jax
 import jax.numpy as jnp
 import jax.random as jr
+import optax
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as onp
@@ -84,9 +85,9 @@ plt.ylabel("y");
 x_train.shape, y_train.shape
 ```
 
-## A non-linear model: MLP
+## Feed-forward neural network
 * A one-hidden-layer feed-forward neural network:
-  $$\hat y = W_2 \tanh (W_1 x + b_1) + b_2 $$
+  $$y = W_2 \tanh (W_1 x + b_1) + b_2 $$
 
   with tunable weights $W_1, b_1, W_2, b_2$. 
 
@@ -99,12 +100,12 @@ $$
 
 \pause
 * The feed-forward net is just a non-linear function:
-$$\hat y = f(p, x).$$
+$$y = f(p, x).$$
 
 \pause
 In our SISO problem $n_x=1, n_y=1$. We can choose $n_h$ (hyper-parameter).
 
-## A non-linear model: MLP
+## Feed-forward neural network
 In code, it is convenient to organize the parameters in a *dictionary*
 
 :::: {.columns}
@@ -119,7 +120,7 @@ def nn(p, x):
 :::
 
 ::: {.column width="40%"}
-$$ \hat y  = W_2 \tanh (W_1 x + b_1) + b_2 $$
+$$ y  = W_2 \overbrace{\tanh (W_1 x + b_1)}^{=z} + b_2 $$
 :::
 
 ::::
@@ -127,7 +128,7 @@ $$ \hat y  = W_2 \tanh (W_1 x + b_1) + b_2 $$
 The parameter dictionary may be initialized like this:
 ```{python}
 nx = 1; ny = 1; nh = 16
-p_hat = {
+params = {
   "W1": jr.normal(key_W1, shape=(nh, nx)),
   "b1": jr.normal(key_b1, shape=(nh,)),
   "W2": jr.normal(key_W2, shape=(ny, nh)),
@@ -135,79 +136,80 @@ p_hat = {
 }
 ```
 
-## A non-linear model: MLP
+## Feed-forward neural network implementation
 * Let us apply the neural network to a data point:
   ```{python}
-  nn(p_hat, x_train[0])
+  nn(params, x_train[0])
   ```
   \pause
   The ``nn`` function only handles a single data point by construction. 
   ```{python}
-  # nn(p_hat, x_train) # This would not work!
+  # nn(p_hat, x_train) # x_train: (N, n_x). It would not work!
   ```
   \pause
 
 * To process a *batch*, we must *vectorize* the ``nn`` function wrt its second argument.
 
   ```{python}
-  # Do nothing for first arg, add batch axis 0 for 2nd arg
+  # do nothing for first arg, add batch axis 0 for 2nd arg
   batched_nn = jax.vmap(nn, in_axes=(None, 0))
   ```
 
   ```{python}
-  y_hat = batched_nn(p_hat, x_train)
+  y_hat = batched_nn(params, x_train); 
   y_hat.shape
   ```
 
-## Fitting the neural net
-```{python}
-#| echo: false 
-p_init = p_hat
-```
-
+## Setting up the loss
 ```{python}
 def loss_fn(p, y, x):
     ym = batched_nn(p, x)
     loss = jnp.mean((y - ym) ** 2)
     return loss
-
-# return both loss and gradient of the loss
-loss_grad_fn = jax.value_and_grad(loss_fn, 0)
 ```
-
+\pause
 ```{python}
-#| echo: false
+# build a single function that return both loss and its gradient
+loss_grad_fn = jax.value_and_grad(loss_fn, 0)
+
+# ask jax to compile this (it's the computational bottleneck)
 loss_grad_fn = jax.jit(loss_grad_fn)
 ```
 
 \pause
-Training loop
+
 ```{python}
-lr = 1e-2 # learning rate
-LOSS = []
-for i in range(10_000):
-    l, g = loss_grad_fn(p_hat, y_train, x_train)
-    p_hat = jax.tree.map(lambda x, y: x - lr*y, p_hat, g)
-    LOSS.append(l)
+loss_grad_fn(params, y_train, x_train)
 ```
+
+## Fitting the neural net
+```{python}
+#| echo: false 
+params_init = params
+```
+The *boilerplate* training code
+
+
+```{python}
+# Setup optimizer
+optimizer = optax.adam(learning_rate=1e-2)
+opt_state = optimizer.init(params)
+```
+```{python}
+# Training loop
+LOSS = []
+for iter in range(1000):
+    loss_val, grads = loss_grad_fn(params, y_train, x_train)
+    updates, opt_state = optimizer.update(grads, opt_state)
+    params = optax.apply_updates(params, updates)
+    LOSS.append(loss_val)
+```
+\pause
+* Use Adam from `optax` instead of plain gradient descent from scratch
+* Save loss for diagnostics
 
 ## Results
 :::: {.columns}
-:::{.column width="50%"}
-```{python}
-#| echo: false
-x_train_srt = jnp.sort(x_train, axis=0)
-plt.figure(figsize=(3.5, 2))
-plt.title("Model fit")
-plt.plot(x_train, y_train, "k*", label="y")
-plt.plot(x_train_srt, batched_nn(p_hat, x_train_srt), "g", label="$f(p^{200}, x)$")
-plt.plot(x_train_srt, batched_nn(p_init, x_train_srt), "b", label="$f(p^{1}, x)$")
-plt.xlabel("x")
-plt.ylabel("y")
-plt.legend();
-```
-:::
-
 :::{.column width="50%"}
 ```{python}
 #| echo: false
@@ -219,6 +221,22 @@ plt.ylabel("Loss");
 ```
 :::
 
+:::{.column width="50%"}
+```{python}
+#| echo: false
+x_train_srt = jnp.sort(x_train, axis=0)
+plt.figure(figsize=(3.5, 2))
+plt.title("Model fit")
+plt.plot(x_train, y_train, "k*", label="y")
+plt.plot(x_train_srt, batched_nn(params, x_train_srt), "g", label="$f(p^{1000}, x)$")
+plt.plot(x_train_srt, batched_nn(params_init, x_train_srt), "b", label="$f(p^{1}, x)$")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.legend();
+
+```
+:::
+
 ::::
 
 \pause
@@ -226,6 +244,6 @@ plt.ylabel("Loss");
 \pause
 * Can be improved with hyperparameter tuning, better optimizer and initialization\dots
 \pause
-* Extension to MIMO is trivial - change $n_x, n_y$
+* Extension to MIMO is trivial - just change $n_x, n_y$
 \pause 
 * Extension to dynamical systems tomorrow
