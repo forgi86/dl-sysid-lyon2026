@@ -1,0 +1,305 @@
+---
+title: "Deep Learning with Jax"
+subtitle: "Fitting state-space models"
+author: "Marco Forgione"
+institute: "IDSIA USI-SUPSI, Lugano, Switzerland"
+aspectratio: 169
+theme: moloch
+pdf-engine: lualatex
+slide-level: 2
+themeoptions:
+  - block=fill
+mathfont: NewCMMath-Regular.otf
+include-in-header:
+  text: |
+    \usepackage[most]{tcolorbox}
+    \usepackage{xcolor}
+    \usepackage{pdfpages}
+    \DeclareMathAlphabet{\mathcal}{OMS}{cmsy}{m}{n}
+    \newcommand{\NN}{\mathbb{N}}
+    \newcommand{\RR}{\mathbb{R}}
+    \newcommand{\indep}{\perp \!\!\! \perp}
+format: 
+  beamer:
+    classoption: presentation
+  beamer-handout:
+    classoption: handout
+echo: true
+---
+
+```{python}
+#| echo: false
+import jax
+import jax.numpy as jnp
+import jax.random as jr
+import optax
+import matplotlib.pyplot as plt
+import matplotlib
+import numpy as onp
+import nonlinear_benchmarks
+
+key = jr.key(42)
+keys = jr.split(key, 5)
+
+# Define your custom parameters as a dictionary
+custom_params = {
+    'figure.figsize': (4, 1.2),  # Width, Height in inches
+    'font.size': 8,           # Default font size
+    'axes.grid': True,         # Always show grid
+}
+
+# Update matplotlib's rcParams with your dictionary
+plt.rcParams.update(custom_params)
+
+```
+
+## State-space models
+We consider state-space models in the form:
+
+\begin{align*}
+x(k+1) &= f(x(k),  u(k); \theta) \\
+y(k) &= g(x(k); \theta)
+\end{align*}
+
+* $x(k) \in \mathbb{R}^{n_x}$ is the state vector. Latent, hidden, unobserved variable
+* $u(k) \in \mathbb{R}^{n_u}$ is the input vector. External, exogenous variable.
+* $y(k) \in \mathbb{R}^{n_y}$ is the output vector
+* $\theta \in \mathbb{R}^{n_\theta}$ is the parameter vector
+
+I don't need to convince you that they are general and powerful!
+\pause
+
+\vskip 1em
+* We will see how to fit state-space models to data using Jax
+\pause
+* $f, g$ represented as feed-forward neural networks.
+
+
+## Training (left) and test (right) data
+```{python}
+#| echo: false
+train, test = nonlinear_benchmarks.Cascaded_Tanks(atleast_2d=True)
+u_tr = train.u.astype(jnp.float32)
+y_tr = train.y.astype(jnp.float32)
+t_tr = train.sampling_time * jnp.arange(train.u.shape[0])
+u_te = test.u.astype(jnp.float32)
+y_te = test.y.astype(jnp.float32)
+t_te = test.sampling_time * jnp.arange(test.u.shape[0])
+```
+
+```{python}
+#| echo: false
+fig, ax = plt.subplots(2, 2, figsize=(6, 2.5))
+
+ax[0, 0].set_title('Output (y)')
+ax[0, 0].plot(t_tr, y_tr)
+
+ax[1, 0].set_title('Input (u)')
+ax[1, 0].plot(t_tr, u_tr)
+
+ax[0, 1].set_title('Output (y)')
+ax[0, 1].plot(t_te, y_te)
+
+ax[1, 1].set_title('Input (u)')
+ax[1, 1].plot(t_te, u_te);
+plt.tight_layout()
+```
+
+\pause
+
+```{python}
+u_tr.shape, y_tr.shape, u_te.shape, y_te.shape
+```
+
+## Pre-processing
+Learning algorithms perform better with favorable scaling (e.g., standardization)
+```{python}
+u_mean = jnp.mean(u_tr); u_std = jnp.std(u_tr)
+u_tr_sc = (u_tr - u_mean) / u_std
+u_te_sc = (u_te - u_mean) / u_std # use training mean and std!
+```
+\pause
+
+```{python}
+#| echo: false
+y_mean = jnp.mean(train.y)
+y_std = jnp.std(train.y)
+y_tr_sc = (y_tr - y_mean) / y_std
+```
+
+```{python}
+# Same shapes as before...
+u_tr_sc.shape, y_tr_sc.shape
+```
+\pause
+```{python}
+# ... but normalized to zero mean and unit variance
+u_tr_sc.mean(), u_tr_sc.std()
+```
+Same procedure applied to the output\dots
+
+## Model fitting
+
+* Among several valid options, we choose the structure:
+
+  \begin{align*}
+  x(k+1) &= f(x(k), u(k)) = x(k) + W_2 \tanh(W_1 \mathrm{vec}(x, u) + b_1) + b_2 \\
+  y(k) &= g(x(k)) = C x (k)
+  \end{align*}
+
+  State update: previous state + $\mathrm{FF}(x, u)$. Output: linear.
+
+\pause
+* We will implement simulation error minimization:
+
+   \begin{equation*}
+     \hat \theta, \hat {x}(0) = \arg \min_{\theta, x(0)} \frac{1}{T} \sum_{k=0}^{T-1}  \| {\hat y^\mathrm{sim}(k) - y(k)}\|^2
+   \end{equation*}
+
+  * $\hat y^\mathrm{sim}(k)$: output *simulated* by iterating the model, starting from $x(0)$
+  * Loss minimized over the parameters $\theta$ and the initial state $x(0)$
+  * It enhances learning of long-term dependencies
+
+
+## Define optimization variables
+We will need to optimize both wrt parameters and initial condition. Let's define:
+\vskip 1em
+```{python}
+nu = 1; nx = 2; ny = 1; nh = 16
+params = {
+  "W1": jr.normal(keys[0], shape=(nh, nu+nx)), # nu + nx inputs
+  "b1": jr.normal(keys[1], shape=(nh,)),
+  "W2": jr.normal(keys[2], shape=(nx, nh)) * 1e-3, # nx outputs
+  "b2": jr.normal(keys[3], shape=(nx,)) * 1e-3, 
+
+  "C": jr.normal(keys[4], shape=(ny, nx)), # nx inputs and ny outputs
+}
+```
+```{python}
+x0 = jnp.zeros((nx,))
+```
+
+## Single step (left) and whole simulation (right)
+We need ``y_sim = sim(params, x0, u_tr_sc)``.
+
+:::: {.columns}
+::: {.column width="55%"}
+```{python}
+def f(p, x, u):
+    xu = jnp.concatenate([x, u])
+    z = jnp.tanh(p["W1"]@xu + p["b1"])
+    x_new = x + p["W2"]@z + p["b2"]
+    return x_new
+
+def g(p, x):
+    y = p["C"] @ x
+    return y
+```
+:::
+
+::: {.column width="45%"}
+```{python}
+def sim(p, x, us):
+    # x: (nx), us:(T, nu)
+    T = us.shape[0]; y_sim = [];
+    for t in range(T):
+        y_sim.append(g(p, x))
+        x = f(p, x, us[t])
+
+    y_sim = jnp.stack(y_sim) 
+    return y_sim # (T, ny)
+```
+:::
+::::
+
+\pause
+\vskip 1em
+* For nerds: see alternative `sim` based on `jax.lax.scan` (equivalent, faster)
+
+```{python}
+#| echo: false
+def sim(p, x0, us):
+    def fg_func(x, u_t):
+        return f(p, x, u_t), g(p, x) # x_new, y
+    xf, y_sim = jax.lax.scan(fg_func, x0, us)
+    return y_sim
+```
+
+## Loss function 
+We are almost done! Just need to define a loss and optimize w.r.t. `params` and `x0`:
+
+\pause
+
+* It is convenient to have all optimization variables in a same container
+  ```{python}
+  opt_vars = {"params": params, "x0": x0}
+  ```
+
+\pause
+* Then, write ``loss_fn`` with first argument `ov` with same structure as `opt_vars`
+  ```{python}
+  def loss_fn(ov, ys, us):
+      y_sim = sim(ov["params"], ov["x0"], us)
+      return jnp.mean((ys - y_sim)**2)
+  ```
+\pause
+
+Loss function available, together with its derivatives. In a sense, the problem is *solved*.
+```{python}
+loss_fn(opt_vars, u_tr_sc, y_tr_sc)
+```
+
+## Training loss and test performance
+After training (left), we test performance (right).
+```{python}
+#| echo: false
+# Setup optimizer
+lr = 1e-3
+iters = 10_000
+optimizer = optax.adam(learning_rate=lr)
+opt_state = optimizer.init(opt_vars)
+loss_grad_fn = jax.jit(jax.value_and_grad(loss_fn))
+
+# Training loop
+LOSS = []
+for iter in range(iters):
+        loss_val, grads = loss_grad_fn(opt_vars, y_tr_sc, u_tr_sc)
+        updates, opt_state = optimizer.update(grads, opt_state)
+        opt_vars = optax.apply_updates(opt_vars, updates)
+        LOSS.append(loss_val)
+
+y_te_sim = sim(opt_vars["params"], opt_vars["x0"], u_te_sc)
+y_te_sim = y_te_sim * y_std + y_mean
+```
+
+:::: {.columns}
+::: {.column width=50%}
+```{python}
+#| echo: false
+plt.figure(figsize=(4, 2.5))
+plt.title(f"Training: {iters} Adam iterations, learning rate 1e-3")
+plt.plot(LOSS)
+plt.xlabel("Iteration (-)")
+plt.ylabel("Loss")
+plt.tight_layout();
+```
+:::
+::: {.column width=50%}
+```{python}
+#| echo: false
+plt.figure(figsize=(4, 2.5))
+plt.title("Test performance")
+plt.plot(t_te, y_te, "k", label="$y$")
+plt.plot(t_te, y_te_sim, "b", label="$y^{\mathrm{sim}}$")
+plt.plot(t_te, y_te_sim - y_te, "r", label="$y^{\mathrm{sim}} - y$")
+plt.legend(loc="upper right")
+plt.tight_layout();
+```
+:::
+::::
+
+\pause
+```{python}
+rmse = jnp.sqrt(jnp.mean((y_te_sim - y_te)**2)); rmse
+```
+Not too bad\dots
