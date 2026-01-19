@@ -27,22 +27,9 @@ format:
 echo: true
 ---
 
-## What are the options?
 
-How do we implement our Neural Networks?
-
-* MATLAB's Deep Learning Toolbox
-* Python + PyTorch
-* Python + JAX
-* Julia
-
-
-## Deep Learning in Jax
-
-Minimal environment
-
-## The numpy API
-Jax has an interface that behaves like numpy (or MATLAB). Let us compute:
+## Getting started
+Jax has an interface that behaves like numpy (or MATLAB). Let's compute:
 
 $$
 \begin{bmatrix}
@@ -206,7 +193,7 @@ with $n_p=2$ parameters.
 We exploit that `f` can process a vector input `x`:
 ```{python}
 def loss_fn(p, y, x):
-    ym = f(p, x) # either scalar (data point) or vector (data batch)
+    ym = f(p, x) # works with vector x
     loss = jnp.mean((y - ym) ** 2)
     return loss
 ```

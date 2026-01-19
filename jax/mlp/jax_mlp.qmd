@@ -161,19 +161,19 @@ params = {
   ```
 
 ## Setting up the loss
+ * Define the loss as a function
 ```{python}
-def loss_fn(p, y, x):
-    ym = batched_nn(p, x)
-    loss = jnp.mean((y - ym) ** 2)
+  def loss_fn(p, y, x):
+    y_hat = batched_nn(p, x)
+    loss = jnp.mean((y - y_hat) ** 2)
     return loss
 ```
-\pause
-```{python}
-# build a single function that return both loss and its gradient
-loss_grad_fn = jax.value_and_grad(loss_fn, 0)
 
-# ask jax to compile this (it's the computational bottleneck)
-loss_grad_fn = jax.jit(loss_grad_fn)
+\pause
+* Define function that return both loss and its gradient
+```{python}
+loss_grad_fn = jax.value_and_grad(loss_fn, 0)
+loss_grad_fn = jax.jit(loss_grad_fn) # compile it!
 ```
 
 \pause
@@ -187,12 +187,11 @@ loss_grad_fn(params, y_train, x_train)
 #| echo: false 
 params_init = params
 ```
-The *boilerplate* training code
+The *boilerplate* training code. Use `optax` instead of gradient descent from scratch\dots
 
 
 ```{python}
-# Setup optimizer
-optimizer = optax.adam(learning_rate=1e-2)
+optimizer = optax.adam(learning_rate=1e-2) # optax.{sgd, adam, ...}
 opt_state = optimizer.init(params)
 ```
 ```{python}
@@ -200,13 +199,12 @@ opt_state = optimizer.init(params)
 LOSS = []
 for iter in range(1000):
     loss_val, grads = loss_grad_fn(params, y_train, x_train)
+
     updates, opt_state = optimizer.update(grads, opt_state)
     params = optax.apply_updates(params, updates)
+    
     LOSS.append(loss_val)
 ```
-\pause
-* Use Adam from `optax` instead of plain gradient descent from scratch
-* Save loss for diagnostics
 
 ## Results
 :::: {.columns}
