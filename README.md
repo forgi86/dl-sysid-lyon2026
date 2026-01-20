@@ -29,7 +29,7 @@ This will create a virtual environment named dl and install all the dependencies
 
 
 4. **Run notebooks in jupyter**
-All course examples are provided as Jupyter Notebooks. To launch the notebook interface, navigate to the folder containing the .ipynb file you wish to open, then run in a terminal:
+All course examples are provided as Jupyter Notebooks. To launch the notebook interface, navigate to the folder containing the .ipynb file you wish to open, then run:
 ```bash
 conda activate dl
 jupyter notebook
@@ -39,7 +39,7 @@ Beginner Python users are advised to follow the steps above to avoid compatibili
 
 Advanced user may opt for alternative setups such as venv, Docker, and different development environments like VSCode, PyCharm, etc., provided all required dependencies are installed and notebooks run as expected. 
 
-If you encounter issues, you may open the code examples in the browser using [Google Colab](https://colab.research.google.com/github/forgi86/dl-sysid-lyon2026/). However, a local setup is recommended for the best experience.
+If you encounter issues, you may open the code examples in the browser using [Google Colab](https://colab.research.google.com/github/forgi86/dl-sysid-lyon2026/) (this requires a Google account). However, a local setup is recommended for the best experience.
 
 
 ## Prerequisites
