@@ -138,7 +138,7 @@ def f(p, x):
 We shall interpret $f$ as the model structure, $p$ as the parameter, $x$ as the input.
 
 \pause
-* Apply $f$ with "true" $p^o = [1.0\;\; 2.0]$ to an input data point $x = 0.5$
+* Apply $f$ with "true" $p=p^o = [1.0\;\; 2.0]$ input data point $x = 0.5$
 
 \pause
 :::: {.columns}
@@ -161,7 +161,7 @@ y = f(p_o, x); y
 ::::
 
 ## Linear regression dataset
-* Apply $f$ with $p^o$ to $N=100$ linearly spaced points in $[-2\;\; 2]$, add noise.
+* Apply $f$ with $p=p^o$ to $N=100$ linearly spaced points in $[-2\;\; 2]$, add noise.
 ```{python}
 N = 100
 x = jnp.linspace(-2, 2, N)
@@ -262,7 +262,7 @@ for i in range(200):
 
 :::  {.column width="47%"}
 \vskip 3em
-$$ p^{k+1} = p^{k} - \lambda \nabla_1 \mathcal{L}(p^{k}, y, x) $$
+$$ \hat p^{k+1} = p^{k} - \lambda \nabla_1 \mathcal{L}(\hat p^{k}, y, x) $$
 :::
 ::::
 
@@ -276,9 +276,14 @@ ax[0].set_title("Loss vs. Iterations")
 ax[0].plot(LOSS)
 ax[1].set_title("Model fit")
 ax[1].plot(x, y, "k*", label="y")
-ax[1].plot(x, f(p_hat, x), "g", label="$f(p^{200}, x)$")
-ax[1].plot(x, f(p_init, x), "b", label="$f(p^{1}, x)$")
+ax[1].plot(x, f(p_hat, x), "g", label=r"$f(\hat{p}^{200}, x)$")
+ax[1].plot(x, f(p_init, x), "b", label=r"$f(\hat{p}^{1}, x)$")
 ax[1].legend()
 plt.tight_layout()
 ```
 
+## Exercises
+* Open the accompanying notebook and familiarize with the environment/code
+* Verify that the gradient returnded by Jax is correct
+* Verify that the optimized $\hat p$ is close to $p^0$
+* Save and visualize the loss vs. iteration
