@@ -19,13 +19,13 @@ We recommend setting up a **Conda virtual environment** with Python and the requ
   - Alternatively, download it as a ZIP file from [this link](https://github.com/forgi86/dl-sysid-lyon2026/archive/refs/heads/main.zip) and extract it.
 
 3. **Create and activate the Conda environment**  
-  Open a terminal, navigate to the project's root directory, and run:
+  Open a terminal (On Windows, launch Anaconda Prompt by searching for it in the Start menu. On macOS or Linux, open your system’s default Terminal application). Navigate to the project's root directory, and run:
   ```bash
   conda create --name dl python=3.14
   conda activate dl
   pip install -r requirements.txt
  ```
-This will create a virtual environment named dl and install all the dependencies listed in [requirements.txt](requirements.txt). On Windows, you should run all commands in the Anaconda Prompt.
+This will create a virtual environment named dl and install all the dependencies listed in [requirements.txt](requirements.txt). On Windows, use as terminal the Anaconda Prompt.
 
 
 4. **Run notebooks in jupyter**
