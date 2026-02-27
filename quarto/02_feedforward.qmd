@@ -232,7 +232,7 @@ plt.plot(x_train_srt, batched_nn(params, x_train_srt), "g", label="$f(\hat p^{10
 plt.plot(x_train_srt, batched_nn(params_init, x_train_srt), "b", label="$f(\hat p^{1}, x)$")
 plt.xlabel("x")
 plt.ylabel("y")
-plt.legend();
+plt.legend(loc="upper left");
 
 ```
 :::
@@ -241,6 +241,8 @@ plt.legend();
 
 \pause
 * Good fit without knowing the model structure
+\pause
+* In practice, you'd choose architecture, learning rate, iterations,... on a *validation set*
 \pause
 * Extension to MIMO is trivial - just change $n_x, n_y$
 \pause 

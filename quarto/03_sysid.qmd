@@ -190,6 +190,10 @@ params = {
 x0 = jnp.zeros((nx,)) # initial state, also to be optimized
 ```
 
+:::{.fragment}
+W2 and b2 scaled down to prevent state from exploding - initializations are important!
+:::
+
 ## Single step (left) and whole simulation (right)
 We need ``y_sim = sim(params, x0, u_tr_sc)``.
 
@@ -225,6 +229,7 @@ def sim(p, x, us):
 
 \pause
 \vskip 1em
+* For large dataset, you'd slice the data into smaller chunks and do mini-batching...
 * For nerds: see `sim` implementation with `jax.lax.scan` (equivalent, faster)
 
 ```{python}

@@ -98,7 +98,7 @@ plt.tight_layout()
 
 \pause
 
-In deep learning:
+In **Deep** learning:
 
 * Expressive model structures like **neural networks**
 * Iterative optimization, often gradient-based
