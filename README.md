@@ -41,7 +41,7 @@ We recommend setting up a **Conda virtual environment** with Python and the requ
 
 **Beginner Python users** are advised to follow the steps above to avoid compatibility issues during the course. 
 
-**Advanced users** may opt for alternative setups (venv, Docker) or different IDEs  (VSCode or PyCharm), provided all required dependencies are installed and the notebooks run as expected. 
+**Advanced users** may opt for alternative setups (venv, uv, Docker...) or development environment (VSCode, PyCharm,...), provided all required dependencies are installed and the notebooks run as expected. 
 
 If you encounter issues, you may open the code examples in your browser using [Google Colab](https://colab.research.google.com/github/forgi86/dl-sysid-lyon2026/) (it requires a Google account). However, a local setup is highly recommended for the best learning experience.
 
