@@ -202,7 +202,7 @@ def loss_fn(p, y, x):
 
 \pause
 ```{python}
-p_hat = jr.normal(key_p, shape=(2,))
+p_hat = jr.normal(key_p, shape=(2,)) # random initial param
 loss_fn(p_hat, y, x)
 ```
 
@@ -210,7 +210,7 @@ loss_fn(p_hat, y, x)
 ## Automatic differentiation in JAX
 * For gradient-based optimization, we need the gradient:
 $$
-\nabla_{1} \mathcal{L}(p, y, x): \mathbb{R}^{n_p} \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}^{n_p},
+\nabla_{1} \mathcal{L}(p, y, x): \mathbb{R}^{n_p} \times \mathbb{R}^N \times \mathbb{R}^N \mapsto \mathbb{R}^{n_p} = \frac{\partial \mathcal{L}(p, y, x)}{\partial p},
 $$
 i.e. the derivative of $\mathcal{L}$ with respect to its first argument: $p$.
 

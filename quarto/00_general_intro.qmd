@@ -44,6 +44,18 @@ custom_params = {
 plt.rcParams.update(custom_params)
 ```
 
+## Deep Learning for System Identification
+
+Mini-course program:
+
+* Brief intro to Deep Learning
+* The JAX library
+* Feedforward neural networks
+* Neural state-space/recurrent neural networks
+
+\vskip 1em
+Focus on implementation
+
 ## Artificial Intelligence, Machine Learning, Deep Learning
 \begin{center}
   \includegraphics[width=0.99\textwidth]{img/ai_subsets.png}
@@ -124,18 +136,20 @@ Is it just a form of *glorified curve fitting*?
 ::::
 \pause
 \begin{align*}
-{y} = W_3\sigma\big(W_2\sigma(W_1 x + b_1)+ b_2\big) + b_3 = \mathrm{FF}(x;\theta)
+{y} = W_3\sigma\big(W_2\sigma(W_1 x + b_1)+ b_2\big) + b_3 = \mathrm{FF}(x;\theta), \qquad \theta = \mathrm{vec}(W_1, b_2, W_2, b_2, W_3, b_3)
 \end{align*}
+
+ <!-- $$ \theta = (W_1, b_2, W_2, b_2, W_3, b_3) $$ -->
 
 \pause
 * Linear blocks interleaved by non-linear **activation functions** $\sigma$, e.g. $\tanh$ \pause
-* Non-linearities essential for **expressiveness**
+* Non-linearities $\sigma(\cdot)$ essential for **expressiveness**
 
 ## Gradient Descent
 
 :::: {.columns}
 ::: {.column width="65%"}
-1. Initialize: $\hat \theta$
+1. Initialize randomly: $\hat \theta$
 
 2. **for** $k=1,\dots,N$:
    - Compute Gradient: $g = \nabla_{\theta} \mathcal{L}(\theta^k)$
@@ -157,7 +171,7 @@ Local convergence to one of the **several minima** is OK!
 ::::
 
 \pause
-\vskip 1em
+<!-- \vskip 1em -->
 
 * Mini-batching: at each iteration, compute loss on a subset of the dataset \vskip .2em
 * Variants of plain gradient descent like \texttt{Adam} are more common and effective \vskip .2em
@@ -455,6 +469,9 @@ An essential aspect is the software implementation. A few options:
 \pause
 \vskip 1em
 We will try out Google's [**JAX**](https://docs.jax.dev/en/latest/)!
+
+ * Used by Google to train the **Gemini** Language Model (by Anthropic for Claude?)
+ * Very efficient for system identification & scientific ML
 
 
 ## Some Literature

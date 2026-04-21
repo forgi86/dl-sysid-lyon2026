@@ -153,7 +153,7 @@ Better initializations exist (Kaiming, Glorot,\dots). Key for big nets, omitted 
 
 * To process a *batch*, we must *vectorize* the ``nn`` function wrt its second argument.
   ```{python}
-  # do nothing for first arg, add batch axis 0 for 2nd arg
+  # do nothing for 1st arg, add batch axis 0 for 2nd arg
   batched_nn = jax.vmap(nn, in_axes=(None, 0))
   ```
 
@@ -263,11 +263,11 @@ plt.legend(loc="upper left");
 
 * Try out different initialization and optimization settings
 \vskip 1em
-* Try out different hyper-parameters (e.g., hidden layers $n_h$, non-linearity function)
+* Try out different hyper-parameters (e.g., hidden nodes $n_h$, non-linearity function)
 \vskip 1em
 * Define and train a neural network with 2 hidden layers
 \vskip 1em
-* Replicate the 2D example in the introductory slides
+* Replicate the 2D example in the introduction slides
 \vskip 1em
 * Implement mini-batching
-  * At each optimization step, sample a *subset* of training instances
+  * At each optimization step, extract a *subset* of samples and train only on those

@@ -76,7 +76,7 @@ No need to convince you that they are general and powerful!
 
 ## Benchmark Dataset: Cascaded Tanks
 
-Non-linear SISO system. Input: upper tank inlet flow $u$. Output: lower tank level $x_2$. 
+Non-linear SISO system. Input: upper tank inlet flow $u$. Output: lower tank level $y=x_2$. 
 
 
 \begin{center}
@@ -123,7 +123,7 @@ u_tr.shape, y_tr.shape, u_te.shape, y_te.shape
 ```
 
 ## Pre-processing
-Learning algorithms perform better with favorable **scaling** (e.g., standardization)
+Deep learning algorithms perform better with favorable **scaling** (e.g., standardization)
 ```{python}
 u_mean = jnp.mean(u_tr); u_std = jnp.std(u_tr)
 u_tr_sc = (u_tr - u_mean) / u_std
@@ -321,9 +321,7 @@ rmse = jnp.sqrt(jnp.mean((y_te_sim - y_te)**2)); rmse
 Not too bad! Check out the official [**Benchmark Results**](https://www.nonlinearbenchmark.org/benchmarks/cascaded-tanks)
 
 ## Exercise
-* Reproduce the training at the previous slide
-  * Hint: adapt the optimization code from the feed-forward example. 
-\vskip 1em
+
 * Try out different models. You may modify:
   * Hyper-parameters and optimization settings
   * Parameter initialization
@@ -332,7 +330,9 @@ Not too bad! Check out the official [**Benchmark Results**](https://www.nonlinea
   * Output equation as another feedforward neural net
   * ...
 \vskip 1em
+
 * Try out a different dataset 
+  * Your own dataset, or some other public [benchmark](https://www.nonlinearbenchmark.org/benchmarks)
 
 
 ## Some links
@@ -351,7 +351,7 @@ Not too bad! Check out the official [**Benchmark Results**](https://www.nonlinea
 Actually many more... the ones above I have either authored or tested!
 
 ## Remarks
-* Training a feedforward neural network in JAX is quite easy
+* Training feedforward and recurrent neural networks in JAX is relatively easy
 \vskip 1em
 * Most of the effort to specify the model and initialize its parameters
   * higher-level JAX libraries like `flax` help you out with that
@@ -360,3 +360,23 @@ Actually many more... the ones above I have either authored or tested!
 \pause
 \vskip 1em
 * JAX adopts a native functional interface. Other libraries (eg, PyTorch) are primarlily object-oriented.
+
+## EECI Course M14 Deep Learning for System Identification
+An extended course on **June 15--June 19 in Leuven** (BE). Additional topics:
+
+* Custom architectures based on physics and system theory
+* Optimization details: mini-batching, non-smooth, constrained…
+* Automatic differentiation details
+* Transformers \& meta learning
+* PyTorch implementation
+
+\begin{center}
+\includegraphics[height=9em]{img/qr.png} \\
+https://www.eeci-igsc.eu/modules/m14-leuven-2025-2026
+\end{center}
+
+## 
+
+\begin{center}
+\Huge Thanks for your attention!
+\end{center}
