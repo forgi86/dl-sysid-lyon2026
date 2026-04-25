@@ -224,3 +224,4 @@ tmp/
 *_files/
 *_cache/
 ~$*
+quarto/*.pdf
